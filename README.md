@@ -1,109 +1,107 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# Secure Job Orchestrator
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+A small, correctness-focused system that demonstrates secure job orchestration with strict trust boundaries.
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+- **Rust** control plane manages job lifecycle, cryptographic metadata, and verification.
+- **C++** compute module performs deterministic processing only.
+- **Supabase (Postgres)** stores job state and metadata only.
+- **Next.js + React + TypeScript + Tailwind** provide a thin UI for submitting and inspecting jobs.
 
-## Features
+## Architecture at a glance
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Proxy
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+```
+client/   -> Next.js UI (submit, list, detail)
+server/   -> Rust API + C++ compute module + schema
+```
 
-## Demo
+### Trust boundaries
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+- Rust owns crypto (Ed25519 signing, SHA-256 hashing) and lifecycle transitions.
+- C++ output is always treated as untrusted until verified by Rust.
+- Supabase is persistence only; no business logic or auth rules are used.
 
-## Deploy to Vercel
+### Cryptographic assumptions
 
-Vercel deployment will guide you through creating a Supabase account and project.
+- **Ed25519** signatures authenticate backend-generated job metadata.
+- **SHA-256** hashes ensure payload integrity.
+- The compute module only emits a deterministic checksum (FNV-1a); Rust recomputes and validates it.
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+## Database schema (Supabase)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+Single table, no joins, no auth/RLS rules:
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+```sql
+create table if not exists jobs (
+  id uuid primary key,
+  job_type text not null,
+  payload jsonb not null,
+  state text not null,
+  payload_hash text not null,
+  backend_signature text not null,
+  verification_status text not null,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now()
+);
+```
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+The schema lives in `server/schema.sql`.
 
-## Clone and run locally
+## API (Rust backend)
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+- `POST /jobs` submit a job for validation and deterministic processing
+- `GET /jobs` list jobs
+- `GET /jobs/{id}` job details
 
-2. Create a Next.js app using the Supabase Starter template npx command
+Each response includes job state, verification status, and signed metadata.
 
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
+## Local development
 
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
+### 1) Supabase
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
+Use the existing Supabase project configured for this repo and run the schema:
 
-3. Use `cd` to change into the app's directory
+- Open the Supabase SQL editor and run `server/schema.sql`.
 
-   ```bash
-   cd with-supabase-app
-   ```
+### 2) Backend (Rust)
 
-4. Rename `.env.example` to `.env.local` and update the following:
+```bash
+cd server
+cp .env.example .env
+# Fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, JOB_SIGNING_KEY
 
-  ```env
-  NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
-  ```
-  > [!NOTE]
-  > This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-  > Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-  > See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
+make -C compute
+cargo run
+```
 
-  Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+`JOB_SIGNING_KEY` must be a 32-byte hex value. Example:
 
-5. You can now run the Next.js local development server:
+```bash
+python - <<'PY'
+import secrets
+print(secrets.token_hex(32))
+PY
+```
 
-   ```bash
-   npm run dev
-   ```
+### 3) Frontend (Next.js)
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+```bash
+cd client
+npm install
+npm run dev
+```
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+Set `NEXT_PUBLIC_API_BASE` in `client/.env.local` if the backend runs somewhere other than `http://localhost:8080`.
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+## What this project demonstrates
 
-## Feedback and issues
+- Clear ownership of cryptographic authority in Rust
+- Verifiable job metadata with Ed25519
+- Deterministic compute module integration via stdin/stdout JSON
+- Explicit job lifecycle state transitions
+- Minimal persistence model in Supabase
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+## Out of scope
 
-## More Supabase examples
-
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+- Auth, RBAC, payments, queues, background workers
+- Scaling, Kubernetes, gRPC, advanced analytics
+- Custom cryptographic protocols or multi-language key splitting
