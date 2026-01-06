@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --ink: 222 32% 12%;
+    --paper: 36 42% 96%;
+    --glow: 186 56% 85%;
+    --accent: 12 78% 52%;
+    --line: 212 18% 82%;
+    --muted: 213 20% 42%;
+  }
+
+  * {
+    @apply border-slate-200/70;
+  }
+
+  body {
+    @apply min-h-screen text-slate-900;
+    font-family: var(--font-sans), system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 15% 20%, hsl(var(--glow) / 0.6), transparent 45%),
+      radial-gradient(circle at 85% 10%, hsl(var(--accent) / 0.18), transparent 40%),
+      linear-gradient(120deg, hsl(var(--paper)), #f5f7f0 40%, #eaf2f4 100%);
+    color: hsl(var(--ink));
+  }
+
+  .intro {
+    animation: lift 0.7s ease both;
+  }
+
+  code,
+  pre,
+  .mono {
+    font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+  }
+}
+
+@keyframes lift {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
