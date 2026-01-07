@@ -2,8 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getJob } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
-
 const badgeStyles: Record<string, string> = {
   SUBMITTED: "bg-slate-900/80 text-white",
   VALIDATED: "bg-amber-200 text-amber-950",
