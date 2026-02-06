@@ -11,6 +11,7 @@ pub struct SupabaseClient {
     client: Client,
 }
 
+
 impl SupabaseClient {
     pub fn new(base_url: String, service_key: String) -> Result<Self, AppError> {
         let mut headers = HeaderMap::new();
