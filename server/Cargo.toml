@@ -18,3 +18,14 @@ thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.5", features = ["cors"] }
 uuid = { version = "1", features = ["v4", "serde"] }
+
+# gRPC dependencies
+tonic = { version = "0.12", features = ["tls"] }
+prost = "0.13"
+prost-types = "0.13"
+tokio-stream = "0.1"
+async-stream = "0.3"
+futures = "0.3"
+
+[build-dependencies]
+tonic-build = "0.12"
