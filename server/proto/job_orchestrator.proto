@@ -1,0 +1,90 @@
+syntax = "proto3";
+package secure_job_orch.v1;
+
+// ============================================================================
+// SERVICE DEFINITION
+// ============================================================================
+
+service JobOrchestrator {
+  // Unary RPCs (Phase 2b)
+  rpc CreateJob(CreateJobRequest) returns (JobResponse);
+  rpc GetJob(GetJobRequest) returns (JobResponse);
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+
+  // Server streaming (Phase 2c)
+  rpc WatchJob(WatchJobRequest) returns (stream JobStatusUpdate);
+  rpc WatchAllJobs(WatchAllJobsRequest) returns (stream JobStatusUpdate);
+
+  // Client streaming (Phase 2d)
+  rpc SubmitBatch(stream CreateJobRequest) returns (BatchResponse);
+
+  // Bidirectional streaming (Phase 2e)
+  rpc ProcessJobs(stream CreateJobRequest) returns (stream JobResponse);
+}
+
+// ============================================================================
+// REQUEST MESSAGES
+// ============================================================================
+
+message CreateJobRequest {
+  string job_type = 1;
+  string payload_json = 2;  // JSON string for payload (simpler than google.protobuf.Struct)
+}
+
+message GetJobRequest {
+  string job_id = 1;  // UUID as string
+}
+
+message ListJobsRequest {
+  // Empty for now, could add pagination later
+}
+
+message WatchJobRequest {
+  string job_id = 1;
+}
+
+message WatchAllJobsRequest {
+  // Empty - subscribes to all job updates
+}
+
+// ============================================================================
+// RESPONSE MESSAGES
+// ============================================================================
+
+message JobRecord {
+  string id = 1;
+  string job_type = 2;
+  string payload_json = 3;  // JSON string for payload
+  string state = 4;         // SUBMITTED, VALIDATED, PROCESSING, VERIFIED, FAILED
+  string payload_hash = 5;
+  string backend_signature = 6;
+  string verification_status = 7;  // UNVERIFIED, VERIFIED, INVALID, FAILED
+  string created_at = 8;    // RFC3339 timestamp
+  string updated_at = 9;    // RFC3339 timestamp
+}
+
+message JobResponse {
+  JobRecord job = 1;
+  string public_key = 2;
+}
+
+message ListJobsResponse {
+  repeated JobRecord jobs = 1;
+  string public_key = 2;
+}
+
+message JobStatusUpdate {
+  string job_id = 1;
+  string previous_state = 2;
+  string new_state = 3;
+  string verification_status = 4;
+  string timestamp = 5;  // RFC3339 timestamp
+}
+
+message BatchResponse {
+  int32 total_submitted = 1;
+  int32 successful = 2;
+  int32 failed = 3;
+  repeated string job_ids = 4;   // IDs of successful jobs
+  repeated string errors = 5;    // Error messages for failed jobs
+}

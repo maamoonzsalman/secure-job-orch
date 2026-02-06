@@ -65,3 +65,19 @@ impl From<reqwest::Error> for AppError {
         AppError::Supabase(err.to_string())
     }
 }
+
+// Convert AppError to tonic::Status for gRPC responses
+impl From<AppError> for tonic::Status {
+    fn from(err: AppError) -> Self {
+        match err {
+            AppError::BadRequest(msg) => tonic::Status::invalid_argument(msg),
+            AppError::NotFound(msg) => tonic::Status::not_found(msg),
+            AppError::Config(msg) => tonic::Status::internal(msg),
+            AppError::Supabase(msg) => tonic::Status::unavailable(msg),
+            AppError::Compute(msg) => tonic::Status::internal(msg),
+            AppError::Serde(msg) => tonic::Status::internal(msg),
+            AppError::Io(msg) => tonic::Status::internal(msg),
+            AppError::Unexpected(msg) => tonic::Status::internal(msg),
+        }
+    }
+}
